@@ -15,28 +15,36 @@ signals = np.array([
     np.array([1 if np.random.random() < probB else 0 for i in range(signalLength)]),
     np.array([1 if np.random.random() < probC else 0 for i in range(signalLength)])
 ])
-print(signals[0])
-print(signals[1])
-print(signals[2])
+# Also get bit index
 
-clause_signals = []
-for bits in zip(*signals):
-    clause_signal = []
-    for clause in clauses:
-        maybe_negated_values = []
-        for variable in clause:
-            variable_index = abs(variable) - 1
-            if variable > 0:
-                maybe_negated = 1 - bits[variable_index]
-            else:
-                maybe_negated = bits[variable_index]
-            maybe_negated_values.append(maybe_negated)
-        clause_output = np.min(maybe_negated_values) # AND
-        clause_signal.append(clause_output)
-    clause_signals.append(clause_signal)
-    # output_signal.append(np.max(clause_outputs)) # OR
+for epoch in range(5):
+    print(f'Epoch {epoch}')
+    for signal in signals:
+        print(signal)
+    clause_signals = []
+    
+    for bit_index, bits in enumerate(zip(*signals)):
+        clause_signal = []
+        for clause in clauses:
+            maybe_negated_values = []
+            for variable in clause:
+                variable_index = abs(variable) - 1
+                if variable > 0:
+                    maybe_negated = 1 - bits[variable_index]
+                else:
+                    maybe_negated = bits[variable_index]
+                maybe_negated_values.append(maybe_negated)
+            clause_output = np.min(maybe_negated_values) # AND
+            clause_signal.append(clause_output)
 
-print(clause_signals)
+        if np.any(clause_signal):
+            for signal in signals:
+                signal[bit_index] = 1 - signal[bit_index]
+
+        clause_signals.append(clause_signal)
+        # output_signal.append(np.max(clause_outputs)) # OR
+    
+    print(clause_signals)
 
     # print(Ki)
     # Ks.append(Ki)
