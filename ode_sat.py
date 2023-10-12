@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 class OdeSat:
 
-    def __init__(self, clauses: np.ndarray, resolution=1000, time=5*4**10):
+    def __init__(self, clauses: np.ndarray, resolution=1000, time=50000):
         self.resolution = resolution
         self.time = time
 
