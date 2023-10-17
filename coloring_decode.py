@@ -19,3 +19,14 @@ for node in range(graph.shape[0]):
     color_sets[color_index].add(node)
 
 print("Color sets", [set([chr(65 + number) for number in color_set]) for color_set in color_sets if len(color_set) > 0])
+
+def verify_graph(color_sets):
+    for color_set in color_sets:
+        for node in color_set:
+            for neighbor in color_set:
+                if graph[node][neighbor] != 0:
+                    print(f"Invalid graph, conflict between {chr(65 + node)} and {chr(65 + neighbor)}.")
+                    return False
+    return True
+
+print(verify_graph(color_sets))
