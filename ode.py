@@ -1,4 +1,5 @@
 from decimal import Decimal, getcontext
+import numpy as np
 
 class ODESolver:
     def __init__(self, func, precision=4):
@@ -52,15 +53,4 @@ class ODESolver:
             times.append(t)
             values.append(y)
         
-        return times, values
-
-# Example usage:
-def ode_func(t, y):
-    return y  # This represents the ODE dy/dt = y, which has the solution y(t) = e^t.
-
-solver = ODESolver(ode_func)
-times, values = solver.solve(1, 0, 2, 0.1)  # Solving from t=0 to t=2 with y(0) = 1 and dt = 0.1.
-
-# Print results:
-for t, y in zip(times, values):
-    print(f"t={t:.2f}, y={y:.2f}")
+        return np.array(times), np.array(values)
