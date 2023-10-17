@@ -10,12 +10,10 @@ class Solver:
         self.T = T
 
         f1 = CNF(from_file=file_name)
-        self.c = np.ones_like(f1.clauses)
+        self.c = np.ones((len(f1.clauses), f1.nv))
         for i, clause in enumerate(f1.clauses):
             for var in clause:
                 self.c[i][abs(var) - 1] = (var > 0) * 2 -1
-        
-        print(self.c)
         
         # M clauses, I variables
         self.M, self.I = self.c.shape
@@ -57,12 +55,12 @@ class Solver:
     
     def integrate(self):
         solver = ODESolver(self.derivative)
-        t = np.linspace(0, self.T, int(self.T/self.dt))
+        print("SOLVING....")
         times, values = solver.solve(self.initial_s, 0, 100, .1)
         return values[:,:self.I]
 
 if __name__ == "__main__":
-    soln = Solver('test_files/simple.cnf')
+    soln = Solver('test_files/coloring.cnf')
     ts = soln.integrate()
     plt.ylim(-1.1, 1.1)
     plt.plot(ts)
