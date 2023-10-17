@@ -31,9 +31,8 @@ class OdeSat:
 
         print(f"M: {self.M}, I: {self.I}")
 
-        # self.initial_a = np.random.normal(0,1, self.M)
         self.initial_s = np.random.uniform(-1,1, self.I)
-        self.initial_a = np.ones(self.M)
+        self.initial_a = self.time * np.ones(self.M)
         self.initial = np.concatenate((self.initial_s, self.initial_a))
 
     def K(self, s, a, m, i = None):
@@ -47,7 +46,7 @@ class OdeSat:
         return sum([2*a[m]*self.c[m][i]*self.K(s, a, m, i) * self.K(s, a, m) for m in range(self.M)])
 
     def da_m(self, s, a, m):
-        return a[m] * self.K(s, a, m) * 0
+        return a[m] * self.K(s, a, m)
     
     def V(self, s, a):
         return sum(a[m] * self.K(s, a, m)**2 for m in range(self.M))
@@ -55,12 +54,7 @@ class OdeSat:
     def derivative(self, state, t):
         s, a = state[:self.I], state[self.I:]
         ds = np.array([self.ds_i(s, a, i) for i in range(len(s))])
-        # da = np.array([self.da_m(s, a, m) for m in range(len(a))])
-        da = np.ones(len(a))
-
-        # print("ds", ds)
-        # print("da", da)
-        # print("conc", np.concatenate((ds, da)))
+        da = np.array([self.da_m(s, a, m) for m in range(len(a))])
 
         return np.concatenate((ds, da))
 
