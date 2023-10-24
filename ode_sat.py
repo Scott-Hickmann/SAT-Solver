@@ -6,7 +6,7 @@ np.random.seed(0)
 
 class OdeSat:
 
-    def __init__(self, clauses: np.ndarray, resolution=1000, time=5*10**6):
+    def __init__(self, clauses: np.ndarray, resolution=1000, time=1):
         self.resolution = resolution
         self.time = time
 
@@ -46,13 +46,13 @@ class OdeSat:
         return out
     
     def ds_i(self, s, a, i):
-        return (2**(-2 * self.I + 1))*sum([2*a[m]*self.c[m][i]*self.K(s, a, m, i) * self.K(s, a, m) for m in range(self.M)])
+        return sum([2*a[m]*self.c[m][i]*self.K(s, a, m, i) * self.K(s, a, m) for m in range(self.M)])
 
     def da_m(self, s, a, m):
-        return a[m] * 2**(-self.I)*self.K(s, a, m)
+        return a[m] * self.K(s, a, m)
     
     def V(self, s, a):
-        return 2**(-self.I)*sum(a[m] * self.K(s, a, m)**2 for m in range(self.M))
+        return sum(a[m] * self.K(s, a, m)**2 for m in range(self.M))
 
     def derivative(self, state, t):
         s, a = state[:self.I], state[self.I:]
@@ -83,4 +83,4 @@ if __name__ == "__main__":
     plt.plot(ts)
     plt.ylim(-1.1, 1.1)
     plt.legend(np.arange(ode_sat.I)+1)
-    plt.show()
+    plt.savefig("out/output.png")
