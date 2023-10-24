@@ -2,6 +2,8 @@ import numpy as np
 from scipy.integrate import odeint
 from matplotlib import pyplot as plt
 
+np.random.seed(0)
+
 class OdeSat:
 
     def __init__(self, clauses: np.ndarray, resolution=1000, time=5*10**6):
