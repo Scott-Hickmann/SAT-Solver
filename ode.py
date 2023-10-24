@@ -24,6 +24,7 @@ class ODESolver:
         Returns:
         - new value of y after time dt
         """
+        # print(dt*self.func(t, y))
         return y + dt * self.func(t, y)
 
     def solve(self, y0, t0, t_end, dt):
@@ -40,17 +41,20 @@ class ODESolver:
         - times: list of time points
         - values: list of y values corresponding to the time points
         """
-        times = [t0]
-        values = [y0]
+        times = np.array([t0])
+        values = np.array([y0])
+        values = values.astype(np.half)
         
         t = t0
         y = y0
         
         while t < t_end:
-            y = self.euler_step(t, y, dt)
+            # print(t)
+            # print(values)
+            y = np.array(self.euler_step(t, y, dt)).astype(np.half)
             t += dt
             
-            times.append(t)
-            values.append(y)
+            times = np.vstack([times, t])
+            values = np.vstack([values, y])
         
         return np.array(times), np.array(values)
