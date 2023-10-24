@@ -41,17 +41,18 @@ class OdeSat:
         out = 1
         for j in range(self.I):
             if j == i: continue
-            out *= 0.5*(1-self.c[m][j]*s[j])
+            out *= 1-self.c[m][j]*s[j]
+        # return 2**(-self.I + (i is not None))*out
         return out
     
     def ds_i(self, s, a, i):
-        return sum([2*a[m]*self.c[m][i]*self.K(s, a, m, i) * self.K(s, a, m) for m in range(self.M)])
+        return (2**(-2 * self.I + 1))*sum([2*a[m]*self.c[m][i]*self.K(s, a, m, i) * self.K(s, a, m) for m in range(self.M)])
 
     def da_m(self, s, a, m):
-        return a[m] * self.K(s, a, m)
+        return a[m] * 2**(-self.I)*self.K(s, a, m)
     
     def V(self, s, a):
-        return sum(a[m] * self.K(s, a, m)**2 for m in range(self.M))
+        return 2**(-self.I)*sum(a[m] * self.K(s, a, m)**2 for m in range(self.M))
 
     def derivative(self, state, t):
         s, a = state[:self.I], state[self.I:]
