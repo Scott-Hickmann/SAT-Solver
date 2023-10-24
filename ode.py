@@ -47,9 +47,8 @@ class ODESolver:
         
         t = t0
         y = y0
-        
-        while t < t_end:
-            # print(t)
+        while t < t_end: 
+            print(t)
             # print(values)
             y = np.array(self.euler_step(t, y, dt)).astype(np.half)
             t += dt
