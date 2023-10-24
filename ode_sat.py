@@ -6,7 +6,7 @@ np.random.seed(0)
 
 class OdeSat:
 
-    def __init__(self, clauses: np.ndarray, resolution=1000, time=1):
+    def __init__(self, clauses: np.ndarray, resolution=1000, time=2):
         self.resolution = resolution
         self.time = time
 
@@ -38,23 +38,23 @@ class OdeSat:
         self.initial = np.concatenate((self.initial_s, self.initial_a))
 
     def K(self, s, a, m, i = None):
-        out = 1
-        for j in range(self.I):
-            if j == i: continue
-            out *= 1-self.c[m][j]*s[j]
-        # return 2**(-self.I + (i is not None))*out
+        c_vals = np.array(self.c[m])
+        if i is not None:
+            c_vals[i] = 0
+        out = np.prod(1 - c_vals * s)
         return out
     
     def ds_i(self, s, a, i):
-        return sum([2*a[m]*self.c[m][i]*self.K(s, a, m, i) * self.K(s, a, m) for m in range(self.M)])
+        c_vals = np.array(self.c)[:, i]
+        K_vals_without_i = np.array([self.K(s, a, m) for m in range(self.M)])
+        K_vals_with_i = np.array([self.K(s, a, m, i) for m in range(self.M)])
+        return np.sum(2 * a * c_vals * K_vals_with_i * K_vals_without_i)
 
     def da_m(self, s, a, m):
         return a[m] * self.K(s, a, m)
-    
-    def V(self, s, a):
-        return sum(a[m] * self.K(s, a, m)**2 for m in range(self.M))
 
     def derivative(self, state, t):
+        print(f"t: {t}")
         s, a = state[:self.I], state[self.I:]
         ds = np.array([self.ds_i(s, a, i) for i in range(len(s))])
         da = np.array([self.da_m(s, a, m) for m in range(len(a))])
@@ -73,7 +73,7 @@ class OdeSat:
 
 if __name__ == "__main__":
     from pysat.formula import CNF
-    f1 = CNF(from_file='test_files/coloring.cnf')
+    f1 = CNF(from_file='test_files/coloring_usa.cnf')
     ode_sat = OdeSat(clauses=f1.clauses)
     ts = ode_sat.integrate()
     print(ts)
@@ -83,4 +83,4 @@ if __name__ == "__main__":
     plt.plot(ts)
     plt.ylim(-1.1, 1.1)
     plt.legend(np.arange(ode_sat.I)+1)
-    plt.savefig("out/output.png")
+    plt.savefig("out/output_usa.png")
