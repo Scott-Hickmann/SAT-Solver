@@ -31,12 +31,11 @@ class Solver:
 
         self.solver = ODESolver(self.derivative, precision=1)
 
-    def K(self, s, a, m, i = None):
-        out = 1
-        for j in range(self.I):
-            if j == i: continue
-            out *= 0.5*(1-self.c[m][j]*s[j])
-        return out
+    def K(self, s, a, m, i=None):
+        mask = np.ones(self.I, dtype=bool)
+        if i is not None:
+            mask[i] = False
+        return np.prod(1 - self.c[m][mask] * s[mask])
     
     def ds_i(self, s, a, i):
         return sum([2*a[m]*self.c[m][i]*self.K(s, a, m, i) * self.K(s, a, m) for m in range(self.M)])
@@ -45,7 +44,8 @@ class Solver:
         return a[m] * self.K(s, a, m)
     
     def V(self, s, a):
-        return sum(a[m] * self.K(s, a, m)**2 for m in range(self.M))
+        K_values = self.K(s, a, np.arange(self.M))  # Calculate K values for all m
+        return np.sum(a * K_values**2)
 
     def derivative(self, t, state):
         s, a = state[:self.I], state[self.I:]
@@ -57,14 +57,17 @@ class Solver:
     
     def integrate(self):
         print("SOLVING....")
-        times, values = self.solver.solve(self.initial, 0, 100, .1)
-        print(type(values[0][0]))
+        times, values = self.solver.solve(self.initial, 0, 1, .01)
         return values[:,:self.I]
 
 if __name__ == "__main__":
-    soln = Solver('test_files/simple.cnf')
+    soln = Solver('test_files/coloring.cnf')
     ts = soln.integrate()
-    # plt.ylim(-1.1, 1.1)
+    last = ts[-1]
+    print(last)
+    results = [index + 1 if value > 0 else -index - 1 for index, value in enumerate(ts[-1])]
+    print(results)
+    plt.ylim(-1.1, 1.1)
     plt.plot(ts)
     plt.legend(np.arange(soln.I)+1)
     plt.show()
