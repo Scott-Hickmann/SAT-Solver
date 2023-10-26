@@ -6,7 +6,7 @@ np.random.seed(0)
 
 class OdeSat:
 
-    def __init__(self, clauses: np.ndarray, resolution=1000, time=1):
+    def __init__(self, clauses: np.ndarray, resolution=1000, time=4):
         self.resolution = resolution
         self.time = time
 
@@ -67,13 +67,16 @@ class OdeSat:
 
     def integrate(self):
         t = np.linspace(0, self.time, self.resolution)
-        # timeseries = odeint(self.derivative, self.initial, t)
 
-        dt = t[1] - t[0]
-        timeseries = np.empty((len(t), len(self.initial)))
-        timeseries[0] = self.initial
-        for i in range(1, len(t)):
-            timeseries[i] = timeseries[i-1] + dt * self.derivative(timeseries[i-1], t[i-1])
+        # ODE Int
+        timeseries = odeint(self.derivative, self.initial, t)
+
+        # Euler
+        # dt = t[1] - t[0]
+        # timeseries = np.empty((len(t), len(self.initial)))
+        # timeseries[0] = self.initial
+        # for i in range(1, len(t)):
+        #     timeseries[i] = timeseries[i-1] + dt * self.derivative(timeseries[i-1], t[i-1])
 
         sTs = timeseries[:,:self.I]
         aTs = timeseries[:,self.I:]
@@ -87,8 +90,8 @@ class OdeSat:
 
 if __name__ == "__main__":
     from pysat.formula import CNF
-    f1 = CNF(from_file='test_files/coloring_basic.cnf')
-    result_name = "coloring_basic_1s_1000res"
+    f1 = CNF(from_file='test_files/factor21.cnf')
+    result_name = "21_odeint_4s_1000res"
 
     ode_sat = OdeSat(clauses=f1.clauses)
     sTs, aTs = ode_sat.integrate()
