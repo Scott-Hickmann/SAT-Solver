@@ -6,7 +6,7 @@ np.random.seed(0)
 
 
 class OdeSat:
-    def __init__(self, clauses: np.ndarray, resolution=10000, time=2):
+    def __init__(self, clauses: np.ndarray, resolution=1000, time=4):
         self.resolution = resolution
         self.time = time
 
@@ -17,7 +17,7 @@ class OdeSat:
             for variable in clause:
                 self.c[clause_index][abs(variable) - 1] = 1 if variable > 0 else -1
 
-        print(self.c)
+        # print(self.c)
 
         # self.c = np.array([
         #     [1, 1, -1],
@@ -44,6 +44,10 @@ class OdeSat:
         out = np.prod(1 - c_vals * s)
         return out
 
+    def V(self, s, a):
+        K_vals = np.array([self.K(s, a, m) for m in range(self.M)])
+        return a @ (K_vals**2)
+
     def ds_i(self, s, a, i):
         c_vals = np.array(self.c)[:, i]
         K_vals_without_i = np.array([self.K(s, a, m) for m in range(self.M)])
@@ -54,14 +58,14 @@ class OdeSat:
         return a[m] * self.K(s, a, m)
 
     def derivative(self, state, t):
-        print(f"t: {t}")
+        # print(f"t: {t}")
         s, a = state[: self.I], state[self.I :]
         ds = np.array([self.ds_i(s, a, i) for i in range(len(s))])
         da = np.array([self.da_m(s, a, m) for m in range(len(a))])
 
         d = np.concatenate((ds, da))
         max = np.amax(np.absolute(d))
-        if max > 100:
+        if max > 40:
             raise Exception(
                 f"Stiff ODE. Step size is too large, leading to dx of {max}"
             )
@@ -70,8 +74,11 @@ class OdeSat:
     def integrate(self):
         try:
             t = np.linspace(0, self.time, self.resolution)
+
+            # ODE Int
             # timeseries = odeint(self.derivative, self.initial, t)
 
+            # Euler
             dt = t[1] - t[0]
             timeseries = np.empty((len(t), len(self.initial)))
             timeseries[0] = self.initial
@@ -80,7 +87,10 @@ class OdeSat:
                     timeseries[i - 1], t[i - 1]
                 )
 
-            return timeseries[:, : self.I]
+            sTs = timeseries[:, : self.I]
+            aTs = timeseries[:, self.I :]
+
+            return sTs, aTs
         except Exception:
             raise
 
@@ -93,12 +103,13 @@ def test_stiffness(clauses, time_limit=1):
     res = 10
     while res < 100000:
         try:
-            ode_sat = OdeSat(clauses=f1.clauses, resolution=res, time=time_limit)
-            ts = ode_sat.integrate()
+            np.random.seed(0)
+            ode = OdeSat(clauses=clauses, resolution=res, time=time_limit)
+            ts = ode.integrate()
         except:
-            print("SKIP")
             res = int(res * 1.5)
             continue
+
         return res
 
 
@@ -106,15 +117,23 @@ if __name__ == "__main__":
     from pysat.formula import CNF
 
     f1 = CNF(from_file="test_files/coloring_basic.cnf")
+    result_name = "coloring_basic_res_test"
+
+    np.random.seed(0)
     res = test_stiffness(f1.clauses)
     print("RES:", res)
-    ode_sat = OdeSat(clauses=f1.clauses, resolution=109, time=1)
-    ts = ode_sat.integrate()
-    print(ts)
-    last = ts[-1]
+    ode_sat = OdeSat(clauses=f1.clauses, resolution=200, time=1)
+    sTs, aTs = ode_sat.integrate()
+    print(sTs)
+    last = sTs[-1]
     print(last.tolist())
     print([index + 1 if value > 0 else -index - 1 for index, value in enumerate(last)])
-    plt.plot(ts)
+    plt.plot(sTs)
     plt.ylim(-1.1, 1.1)
     plt.legend(np.arange(ode_sat.I) + 1)
-    plt.savefig("out/output_usa_euler_2s_10000res.png")
+    plt.savefig(f"out/{result_name}.png")
+
+    plt.clf()
+    vs = [ode_sat.V(s, a) for s, a in zip(sTs, aTs)]
+    plt.plot(vs)
+    plt.savefig(f"out/{result_name}_v.png")
