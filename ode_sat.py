@@ -6,7 +6,7 @@ np.random.seed(0)
 
 class OdeSat:
 
-    def __init__(self, clauses: np.ndarray, resolution=1000, time=2):
+    def __init__(self, clauses: np.ndarray, resolution=10000, time=2):
         self.resolution = resolution
         self.time = time
 
@@ -63,7 +63,14 @@ class OdeSat:
 
     def integrate(self):
         t = np.linspace(0, self.time, self.resolution)
-        timeseries = odeint(self.derivative, self.initial, t)
+        # timeseries = odeint(self.derivative, self.initial, t)
+
+        dt = t[1] - t[0]
+        timeseries = np.empty((len(t), len(self.initial)))
+        timeseries[0] = self.initial
+        for i in range(1, len(t)):
+            timeseries[i] = timeseries[i-1] + dt * self.derivative(timeseries[i-1], t[i-1])
+
         return timeseries[:,:self.I]
 
     def run(self):
@@ -83,4 +90,4 @@ if __name__ == "__main__":
     plt.plot(ts)
     plt.ylim(-1.1, 1.1)
     plt.legend(np.arange(ode_sat.I)+1)
-    plt.savefig("out/output_usa.png")
+    plt.savefig("out/output_usa_euler_2s_10000res.png")
