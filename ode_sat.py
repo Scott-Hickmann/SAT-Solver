@@ -6,7 +6,7 @@ np.random.seed(0)
 
 class OdeSat:
 
-    def __init__(self, clauses: np.ndarray, resolution=10000, time=2):
+    def __init__(self, clauses: np.ndarray, resolution=1000, time=1):
         self.resolution = resolution
         self.time = time
 
@@ -44,6 +44,10 @@ class OdeSat:
         out = np.prod(1 - c_vals * s)
         return out
     
+    def V(self, s, a):
+        K_vals = np.array([self.K(s, a, m) for m in range(self.M)])
+        return a @ (K_vals ** 2)
+    
     def ds_i(self, s, a, i):
         c_vals = np.array(self.c)[:, i]
         K_vals_without_i = np.array([self.K(s, a, m) for m in range(self.M)])
@@ -71,7 +75,10 @@ class OdeSat:
         for i in range(1, len(t)):
             timeseries[i] = timeseries[i-1] + dt * self.derivative(timeseries[i-1], t[i-1])
 
-        return timeseries[:,:self.I]
+        sTs = timeseries[:,:self.I]
+        aTs = timeseries[:,self.I:]
+
+        return sTs, aTs
 
     def run(self):
         timeseries = self.integrate()
@@ -80,14 +87,21 @@ class OdeSat:
 
 if __name__ == "__main__":
     from pysat.formula import CNF
-    f1 = CNF(from_file='test_files/coloring_usa.cnf')
+    f1 = CNF(from_file='test_files/coloring_basic.cnf')
+    result_name = "coloring_basic_1s_1000res"
+
     ode_sat = OdeSat(clauses=f1.clauses)
-    ts = ode_sat.integrate()
-    print(ts)
-    last = ts[-1]
+    sTs, aTs = ode_sat.integrate()
+    print(sTs)
+    last = sTs[-1]
     print(last.tolist())
     print([index + 1 if value > 0 else -index - 1 for index, value in enumerate(last)])
-    plt.plot(ts)
+    plt.plot(sTs)
     plt.ylim(-1.1, 1.1)
     plt.legend(np.arange(ode_sat.I)+1)
-    plt.savefig("out/output_usa_euler_2s_10000res.png")
+    plt.savefig(f"out/{result_name}.png")
+    
+    plt.clf()
+    vs = [ode_sat.V(s, a) for s, a in zip(sTs, aTs)]
+    plt.plot(vs)
+    plt.savefig(f"out/{result_name}_v.png")
