@@ -38,7 +38,7 @@ class OdeSat:
         self.initial = np.concatenate((self.initial_s, self.initial_a))
 
     def K(self, s, a, m, i=None):
-        c_vals = np.array(self.c[m])
+        c_vals = np.array(self.c)[m]
         if i is not None:
             c_vals[i] = 0
         out = np.prod(1 - c_vals * s)
@@ -57,18 +57,13 @@ class OdeSat:
     def da_m(self, s, a, m):
         return a[m] * self.K(s, a, m)
 
-    def derivative(self, state, t):
+    def derivative(self, state):
         # print(f"t: {t}")
         s, a = state[: self.I], state[self.I :]
         ds = np.array([self.ds_i(s, a, i) for i in range(len(s))])
         da = np.array([self.da_m(s, a, m) for m in range(len(a))])
 
         d = np.concatenate((ds, da))
-        max = np.amax(np.absolute(d))
-        if max > 200:
-            raise Exception(
-                f"Stiff ODE. Step size is too large, leading to dx of {max}"
-            )
         return d
 
     def integrate(self):
@@ -82,16 +77,25 @@ class OdeSat:
             dt = t[1] - t[0]
             timeseries = np.empty((len(t), len(self.initial)))
             timeseries[0] = self.initial
+            # print("t shape", timeseries.shape)
             for i in range(1, len(t)):
                 timeseries[i] = timeseries[i - 1] + dt * self.derivative(
-                    timeseries[i - 1], t[i - 1]
+                    timeseries[i - 1]
                 )
+
+                if np.isnan(timeseries).any() or np.any(
+                    (timeseries < -1.5) | (timeseries > 1.5)
+                ):
+                    # print("stiff")
+                    print(np.isnan(timeseries).any())
+                    raise Exception(f"Stiff ODE. Step size is too large.")
 
             sTs = timeseries[:, : self.I]
             aTs = timeseries[:, self.I :]
 
             return sTs, aTs
-        except Exception:
+        except Exception as e:
+            print("exception occurred", e)
             raise
 
     def run(self):
@@ -110,6 +114,7 @@ def test_stiffness(clauses, time_limit=1):
         except:
             res = int(res * 1.2)
             continue
+        print("FOUND WORKING RES:", res)
         return res
     return -1
 
@@ -117,8 +122,8 @@ def test_stiffness(clauses, time_limit=1):
 if __name__ == "__main__":
     from pysat.formula import CNF
 
-    f1 = CNF(from_file="test_files/factor8.cnf")
-    result_name = "factor8_test"
+    f1 = CNF(from_file="test_files/coloring_basic.cnf")
+    result_name = "coloring_unoptimized"
 
     res = test_stiffness(f1.clauses)
     print("resolution", res)
@@ -126,6 +131,7 @@ if __name__ == "__main__":
     np.random.seed(0)
     ode_sat = OdeSat(clauses=f1.clauses, resolution=res, time=1)
     sTs, aTs = ode_sat.integrate()
+
     print(sTs)
     last = sTs[-1]
     print(last.tolist())
