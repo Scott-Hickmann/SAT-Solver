@@ -6,7 +6,7 @@ np.random.seed(0)
 
 class OdeSat:
 
-    def __init__(self, clauses: np.ndarray, resolution=1000, time=4):
+    def __init__(self, clauses: np.ndarray, resolution, time):
         self.resolution = resolution
         self.time = time
 
@@ -37,31 +37,31 @@ class OdeSat:
         self.initial_a = self.time * np.ones(self.M)
         self.initial = np.concatenate((self.initial_s, self.initial_a))
 
-    def K(self, s, a, m, i = None):
-        c_vals = np.array(self.c[m])
-        if i is not None:
-            c_vals[i] = 0
-        out = np.prod(1 - c_vals * s)
-        return out
+    def K(self, s, m):
+        return np.prod(1 - self.c[m] * s)
+    
+    def Ki(self, K_vals, s, m, i):
+        return K_vals[m] / (1 - self.c[m, i] * s[i])
     
     def V(self, s, a):
-        K_vals = np.array([self.K(s, a, m) for m in range(self.M)])
+        K_vals = np.array([self.K(s, m) for m in range(self.M)])
         return a @ (K_vals ** 2)
     
-    def ds_i(self, s, a, i):
-        c_vals = np.array(self.c)[:, i]
-        K_vals_without_i = np.array([self.K(s, a, m) for m in range(self.M)])
-        K_vals_with_i = np.array([self.K(s, a, m, i) for m in range(self.M)])
-        return np.sum(2 * a * c_vals * K_vals_with_i * K_vals_without_i)
+    def ds_i(self, s, a, i, K_vals):
+        c_vals = self.c[:, i]
+        denominator = 1 - (c_vals * s[i])
+        Ki_vals = K_vals / denominator
+        return 2 * a @ (c_vals * Ki_vals * K_vals)
 
-    def da_m(self, s, a, m):
-        return a[m] * self.K(s, a, m)
+    def da_m(self, K_vals, a, m):
+        return a[m] * K_vals[m]
 
     def derivative(self, state, t):
-        print(f"t: {t}")
+        # print(f"t: {t}")
         s, a = state[:self.I], state[self.I:]
-        ds = np.array([self.ds_i(s, a, i) for i in range(len(s))])
-        da = np.array([self.da_m(s, a, m) for m in range(len(a))])
+        K_vals = np.array([self.K(s, m) for m in range(self.M)])
+        ds = np.array([self.ds_i(s, a, i, K_vals) for i in range(len(s))])
+        da = a * K_vals
 
         return np.concatenate((ds, da))
 
@@ -69,14 +69,14 @@ class OdeSat:
         t = np.linspace(0, self.time, self.resolution)
 
         # ODE Int
-        timeseries = odeint(self.derivative, self.initial, t)
+        # timeseries = odeint(self.derivative, self.initial, t)
 
         # Euler
-        # dt = t[1] - t[0]
-        # timeseries = np.empty((len(t), len(self.initial)))
-        # timeseries[0] = self.initial
-        # for i in range(1, len(t)):
-        #     timeseries[i] = timeseries[i-1] + dt * self.derivative(timeseries[i-1], t[i-1])
+        dt = t[1] - t[0]
+        timeseries = np.empty((len(t), len(self.initial)))
+        timeseries[0] = self.initial
+        for i in range(1, len(t)):
+            timeseries[i] = timeseries[i-1] + dt * self.derivative(timeseries[i-1], t[i-1])
 
         sTs = timeseries[:,:self.I]
         aTs = timeseries[:,self.I:]
@@ -90,11 +90,17 @@ class OdeSat:
 
 if __name__ == "__main__":
     from pysat.formula import CNF
-    f1 = CNF(from_file='test_files/factor21.cnf')
-    result_name = "21_odeint_4s_1000res"
+    resolution = 1000
+    duration = 1
+    file_name = "coloring_basic"
+    f1 = CNF(from_file=f"test_files/{file_name}.cnf")
+    result_name = f"{file_name}_euler_{duration}s_{resolution}res_3"
 
-    ode_sat = OdeSat(clauses=f1.clauses)
+    import time
+    ode_sat = OdeSat(clauses=f1.clauses, resolution=resolution, time=duration)
+    start = time.time()
     sTs, aTs = ode_sat.integrate()
+    end = time.time()
     print(sTs)
     last = sTs[-1]
     print(last.tolist())
@@ -108,3 +114,4 @@ if __name__ == "__main__":
     vs = [ode_sat.V(s, a) for s, a in zip(sTs, aTs)]
     plt.plot(vs)
     plt.savefig(f"out/{result_name}_v.png")
+    print(f"Time: {end - start} s, final V: {vs[-1]}")
