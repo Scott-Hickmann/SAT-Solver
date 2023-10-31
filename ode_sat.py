@@ -18,6 +18,7 @@ class OdeSat:
                 self.c[clause_index][abs(variable) - 1] = 1 if variable > 0 else -1
 
         print(self.c)
+        self.cT = self.c.T
         
         # self.c = np.array([
         #     [1, 1, -1],
@@ -40,28 +41,39 @@ class OdeSat:
     def K(self, s, m):
         return np.prod(1 - self.c[m] * s)
     
-    def Ki(self, K_vals, s, m, i):
-        return K_vals[m] / (1 - self.c[m, i] * s[i])
+    # def Ki(self, K_vals, s, m, i):
+    #     return K_vals[m] / (1 - self.c[m, i] * s[i])
     
     def V(self, s, a):
         K_vals = np.array([self.K(s, m) for m in range(self.M)])
         return a @ (K_vals ** 2)
     
-    def ds_i(self, s, a, i, K_vals):
-        c_vals = self.c[:, i]
-        denominator = 1 - (c_vals * s[i])
-        Ki_vals = K_vals / denominator
-        return 2 * a @ (c_vals * Ki_vals * K_vals)
+    # def ds_i(self, s, a, i, K_vals):
+    #     c_vals = self.c[:, i]
+    #     denominator = 1 - (c_vals * s[i])
+    #     Ki_vals = K_vals / denominator
+    #     return 2 * a @ (c_vals * Ki_vals * K_vals)
 
-    def da_m(self, K_vals, a, m):
-        return a[m] * K_vals[m]
+    # def da_m(self, K_vals, a, m):
+    #     return a[m] * K_vals[m]
+
+    def da(self, a, K_vals):
+        return a * K_vals
+    
+    def ds(self, s, a, K_vals):
+        s_broadcasted = s[:, np.newaxis]
+        denominator = 1 - (self.cT * s_broadcasted)
+        Ki_vals = K_vals / denominator
+        intermediate_result = (self.cT * Ki_vals * K_vals)
+        result = 2 * np.sum(a * intermediate_result, axis=1)
+        return result
 
     def derivative(self, state, t):
         # print(f"t: {t}")
         s, a = state[:self.I], state[self.I:]
         K_vals = np.array([self.K(s, m) for m in range(self.M)])
-        ds = np.array([self.ds_i(s, a, i, K_vals) for i in range(len(s))])
-        da = a * K_vals
+        ds = self.ds(s, a, K_vals)
+        da = self.da(a, K_vals)
 
         return np.concatenate((ds, da))
 
