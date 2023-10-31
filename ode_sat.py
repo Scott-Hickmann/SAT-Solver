@@ -65,7 +65,7 @@ class OdeSat:
 
         d = np.concatenate((ds, da))
         max = np.amax(np.absolute(d))
-        if max > 40:
+        if max > 200:
             raise Exception(
                 f"Stiff ODE. Step size is too large, leading to dx of {max}"
             )
@@ -101,33 +101,36 @@ class OdeSat:
 
 def test_stiffness(clauses, time_limit=1):
     res = 10
-    while res < 100000:
+    while res < 10000000:
+        print(res)
         try:
             np.random.seed(0)
             ode = OdeSat(clauses=clauses, resolution=res, time=time_limit)
             ts = ode.integrate()
         except:
-            res = int(res * 1.5)
+            res = int(res * 1.2)
             continue
-
         return res
+    return -1
 
 
 if __name__ == "__main__":
     from pysat.formula import CNF
 
-    f1 = CNF(from_file="test_files/coloring_basic.cnf")
-    result_name = "coloring_basic_res_test"
+    f1 = CNF(from_file="test_files/factor8.cnf")
+    result_name = "factor8_test"
+
+    res = test_stiffness(f1.clauses)
+    print("resolution", res)
 
     np.random.seed(0)
-    res = test_stiffness(f1.clauses)
-    print("RES:", res)
-    ode_sat = OdeSat(clauses=f1.clauses, resolution=200, time=1)
+    ode_sat = OdeSat(clauses=f1.clauses, resolution=res, time=1)
     sTs, aTs = ode_sat.integrate()
     print(sTs)
     last = sTs[-1]
     print(last.tolist())
     print([index + 1 if value > 0 else -index - 1 for index, value in enumerate(last)])
+    print("Final resolution:", res)
     plt.plot(sTs)
     plt.ylim(-1.1, 1.1)
     plt.legend(np.arange(ode_sat.I) + 1)
