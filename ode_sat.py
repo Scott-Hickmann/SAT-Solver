@@ -2,7 +2,7 @@ import numpy as np
 from scipy.integrate import odeint
 from matplotlib import pyplot as plt
 
-np.random.s
+np.random.seed(0)
 
 
 class OdeSat:
@@ -34,7 +34,7 @@ class OdeSat:
 
         print(f"M: {self.M}, I: {self.I}")
 
-        self.initial_s = rng.uniform(-1, 1, self.I)
+        self.initial_s = np.random.uniform(-1, 1, self.I)
         self.initial_a = self.time * np.ones(self.M)
         self.initial = np.concatenate((self.initial_s, self.initial_a))
         print("initial:", np.max(self.initial))
@@ -113,12 +113,11 @@ class OdeSat:
 
 
 def test_stiffness(clauses, time_limit=1):
-    global rng
     res = 10
     while res < 10000000:
         print(res)
         try:
-            rng = np.random.default_rng(0)
+            np.random.seed(0)
             ode = OdeSat(clauses=clauses, resolution=res, time=time_limit)
             ts = ode.integrate()
         except Exception as e:
@@ -139,7 +138,7 @@ if __name__ == "__main__":
     res = test_stiffness(f1.clauses)
     print("resolution", res)
 
-    rng = np.random.default_rng(0)
+    np.random.seed(0)
     ode_sat = OdeSat(clauses=f1.clauses, resolution=res, time=1)
     sTs, aTs = ode_sat.integrate()
 
