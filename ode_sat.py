@@ -5,6 +5,10 @@ from matplotlib import pyplot as plt
 np.random.seed(0)
 
 
+class StiffException(Exception):
+    pass
+
+
 class OdeSat:
     def __init__(self, clauses: np.ndarray, resolution=1000, time=4):
         self.resolution = resolution
@@ -37,7 +41,6 @@ class OdeSat:
         self.initial_s = np.random.uniform(-1, 1, self.I)
         self.initial_a = self.time * np.ones(self.M)
         self.initial = np.concatenate((self.initial_s, self.initial_a))
-        print("initial:", np.max(self.initial))
 
     def K(self, s, m):
         return np.prod(1 - self.c[m] * s)
@@ -45,8 +48,9 @@ class OdeSat:
     # def Ki(self, K_vals, s, m, i):
     #     return K_vals[m] / (1 - self.c[m, i] * s[i])
 
-    def V(self, s, a):
-        K_vals = np.array([self.K(s, m) for m in range(self.M)])
+    def V(self, s, a, K_vals=None):
+        if np.all(K_vals) == None:
+            K_vals = np.array([self.K(s, m) for m in range(self.M)])
         return a @ (K_vals**2)
 
     # def ds_i(self, s, a, i, K_vals):
@@ -64,7 +68,7 @@ class OdeSat:
     def ds(self, s, a, K_vals):
         s_broadcasted = s[:, np.newaxis]
         denominator = 1 - (self.cT * s_broadcasted)
-        Ki_vals = K_vals / denominator
+        Ki_vals = np.where(denominator != 0, K_vals / denominator, 0)
         intermediate_result = self.cT * Ki_vals * K_vals
         result = 2 * np.sum(a * intermediate_result, axis=1)
         return result
@@ -76,7 +80,7 @@ class OdeSat:
         ds = self.ds(s, a, K_vals)
         da = self.da(a, K_vals)
 
-        return np.concatenate((ds, da))
+        return np.concatenate((ds, da)), K_vals
 
     def integrate(self):
         t = np.linspace(0, self.time, self.resolution)
@@ -88,10 +92,10 @@ class OdeSat:
         dt = t[1] - t[0]
         timeseries = np.empty((len(t), len(self.initial)))
         timeseries[0] = self.initial
-        print("initial", self.initial)
         # print("t shape", timeseries.shape)
         for i in range(1, len(t)):
-            timeseries[i] = timeseries[i - 1] + dt * self.derivative(timeseries[i - 1])
+            ds_da, k_vals = self.derivative(timeseries[i - 1])
+            timeseries[i] = timeseries[i - 1] + dt * ds_da
 
             sTs = timeseries[i, : self.I]
 
@@ -100,10 +104,18 @@ class OdeSat:
                 print(np.isnan(sTs).any())
                 print("i:", i)
                 print(np.nanmax(sTs, 0))
-                raise Exception(f"Stiff ODE. Step size is too large.")
+                raise StiffException(f"Stiff ODE. Step size is too large.")
 
-        sTs = timeseries[:, : self.I]
-        aTs = timeseries[:, self.I :]
+            sTs = timeseries[:i, : self.I]
+            aTs = timeseries[:i, self.I :]
+
+            vs = [
+                self.V(s, a, k_vals)
+                for s, a in zip(np.expand_dims(sTs[-1], 0), np.expand_dims(aTs[-1], 0))
+            ]
+            if np.min(vs) < 1e-3:
+                print(f"ending early, {i / len(t) * 100}% of max scheduled time")
+                return sTs, aTs
 
         return sTs, aTs
 
@@ -120,7 +132,7 @@ def test_stiffness(clauses, time_limit=1):
             np.random.seed(0)
             ode = OdeSat(clauses=clauses, resolution=res, time=time_limit)
             ts = ode.integrate()
-        except Exception as e:
+        except StiffException as e:
             print("NEXT")
             res = int(res * 1.2)
             continue
@@ -132,8 +144,8 @@ def test_stiffness(clauses, time_limit=1):
 if __name__ == "__main__":
     from pysat.formula import CNF
 
-    f1 = CNF(from_file="test_files/coloring_basic.cnf")
-    result_name = "coloring_unoptimized"
+    f1 = CNF(from_file="test_files/factor8.cnf")
+    result_name = "factor8"
 
     res = test_stiffness(f1.clauses)
     print("resolution", res)
@@ -142,7 +154,6 @@ if __name__ == "__main__":
     ode_sat = OdeSat(clauses=f1.clauses, resolution=res, time=1)
     sTs, aTs = ode_sat.integrate()
 
-    print(sTs)
     last = sTs[-1]
     print(last.tolist())
     print([index + 1 if value > 0 else -index - 1 for index, value in enumerate(last)])
