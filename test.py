@@ -1,12 +1,12 @@
 import numpy as np
-from scipy.integrate import odeint, solve_ivp
+from scipy.integrate import odeint
 from matplotlib import pyplot as plt
 
 np.random.seed(0)
 
 
 class OdeSat:
-    def __init__(self, clauses: np.ndarray, resolution, time):
+    def __init__(self, clauses: np.ndarray, resolution=1000, time=4):
         self.resolution = resolution
         self.time = time
 
@@ -17,7 +17,7 @@ class OdeSat:
             for variable in clause:
                 self.c[clause_index][abs(variable) - 1] = 1 if variable > 0 else -1
 
-        print(self.c)
+        # print(self.c)
         self.cT = self.c.T
 
         # self.c = np.array([
@@ -37,6 +37,7 @@ class OdeSat:
         self.initial_s = np.random.uniform(-1, 1, self.I)
         self.initial_a = self.time * np.ones(self.M)
         self.initial = np.concatenate((self.initial_s, self.initial_a))
+        print("initial:", np.max(self.initial))
 
     def K(self, s, m):
         return np.prod(1 - self.c[m] * s)
@@ -47,10 +48,6 @@ class OdeSat:
     def V(self, s, a):
         K_vals = np.array([self.K(s, m) for m in range(self.M)])
         return a @ (K_vals**2)
-
-    def E(self, s):
-        K_vals = np.array([self.K(s, m) for m in range(self.M)])
-        return K_vals @ K_vals
 
     # def ds_i(self, s, a, i, K_vals):
     #     c_vals = self.c[:, i]
@@ -64,19 +61,19 @@ class OdeSat:
     def da(self, a, K_vals):
         return a * K_vals
 
-    def ds(self, s, a, K_vals, t):
+    def ds(self, s, a, K_vals):
         s_broadcasted = s[:, np.newaxis]
         denominator = 1 - (self.cT * s_broadcasted)
-        Ki_vals = np.where(denominator != 0, K_vals / denominator, 0)
+        Ki_vals = K_vals / denominator
         intermediate_result = self.cT * Ki_vals * K_vals
         result = 2 * np.sum(a * intermediate_result, axis=1)
         return result
 
-    def derivative(self, t, state):
-        print(f"t: {t}")
+    def derivative(self, state):
+        # print(f"t: {t}")
         s, a = state[: self.I], state[self.I :]
         K_vals = np.array([self.K(s, m) for m in range(self.M)])
-        ds = self.ds(s, a, K_vals, t)
+        ds = self.ds(s, a, K_vals)
         da = self.da(a, K_vals)
 
         return np.concatenate((ds, da))
@@ -87,18 +84,23 @@ class OdeSat:
         # ODE Int
         # timeseries = odeint(self.derivative, self.initial, t)
 
-        # Solve IVP
-        res = solve_ivp(self.derivative, (0, self.time), self.initial, method="LSODA")
-        timeseries = res.y.T
-
         # Euler
-        # dt = t[1] - t[0]
-        # timeseries = np.empty((len(t), len(self.initial)))
-        # timeseries[0] = self.initial
-        # for i in range(1, len(t)):
-        #     timeseries[i] = timeseries[i - 1] + dt * self.derivative(
-        #         timeseries[i - 1], t[i - 1]
-        #     )
+        dt = t[1] - t[0]
+        timeseries = np.empty((len(t), len(self.initial)))
+        timeseries[0] = self.initial
+        print("initial", self.initial)
+        # print("t shape", timeseries.shape)
+        for i in range(1, len(t)):
+            timeseries[i] = timeseries[i - 1] + dt * self.derivative(timeseries[i - 1])
+
+            sTs = timeseries[i, : self.I]
+
+            if np.isnan(sTs).any() or np.any((sTs < -1.2) | (sTs > 1.2)):
+                # print("stiff")
+                print(np.isnan(sTs).any())
+                print("i:", i)
+                print(np.nanmax(sTs, 0))
+                raise Exception(f"Stiff ODE. Step size is too large.")
 
         sTs = timeseries[:, : self.I]
         aTs = timeseries[:, self.I :]
@@ -110,25 +112,41 @@ class OdeSat:
         return timeseries
 
 
+def test_stiffness(clauses, time_limit=1):
+    res = 10
+    while res < 10000000:
+        print(res)
+        try:
+            np.random.seed(0)
+            ode = OdeSat(clauses=clauses, resolution=res, time=time_limit)
+            ts = ode.integrate()
+        except Exception as e:
+            print("NEXT")
+            res = int(res * 1.2)
+            continue
+        print("FOUND WORKING RES:", res)
+        return res
+    return -1
+
+
 if __name__ == "__main__":
     from pysat.formula import CNF
 
-    resolution = 10000
-    duration = 8
-    file_name = "factor21"
-    f1 = CNF(from_file=f"test_files/{file_name}.cnf")
-    result_name = f"{file_name}_solveivp_{duration}s_{resolution}res_3"
+    f1 = CNF(from_file="test_files/factor21.cnf")
+    result_name = "fast_factor21"
 
-    import time
+    res = test_stiffness(f1.clauses)
+    print("resolution", res)
 
-    ode_sat = OdeSat(clauses=f1.clauses, resolution=resolution, time=duration)
-    start = time.time()
+    np.random.seed(0)
+    ode_sat = OdeSat(clauses=f1.clauses, resolution=res, time=5)
     sTs, aTs = ode_sat.integrate()
-    end = time.time()
+
     print(sTs)
     last = sTs[-1]
     print(last.tolist())
     print([index + 1 if value > 0 else -index - 1 for index, value in enumerate(last)])
+    # print("Final resolution:", res)
     plt.plot(sTs)
     plt.ylim(-1.1, 1.1)
     plt.legend(np.arange(ode_sat.I) + 1)
@@ -138,10 +156,3 @@ if __name__ == "__main__":
     vs = [ode_sat.V(s, a) for s, a in zip(sTs, aTs)]
     plt.plot(vs)
     plt.savefig(f"out/{result_name}_v.png")
-
-    plt.clf()
-    es = [ode_sat.E(s) for s in sTs]
-    plt.plot(es)
-    plt.savefig(f"out/{result_name}_e.png")
-
-    print(f"Time: {end - start} s, final V: {vs[-1]}")
