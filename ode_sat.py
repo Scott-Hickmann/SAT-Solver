@@ -127,7 +127,7 @@ class OdeSat:
 def test_stiffness(clauses, time_limit=1):
     res = 10
     while res < 10000000:
-        print(res)
+        print("res:", res)
         try:
             np.random.seed(0)
             ode = OdeSat(clauses=clauses, resolution=res, time=time_limit)
@@ -144,14 +144,15 @@ def test_stiffness(clauses, time_limit=1):
 if __name__ == "__main__":
     from pysat.formula import CNF
 
-    f1 = CNF(from_file="test_files/factor8.cnf")
-    result_name = "factor8"
+    f1 = CNF(from_file="test_files/factor21.cnf")
+    result_name = "factor21"
 
-    res = test_stiffness(f1.clauses)
+    time = 8
+    res = test_stiffness(f1.clauses, 8)
     print("resolution", res)
 
     np.random.seed(0)
-    ode_sat = OdeSat(clauses=f1.clauses, resolution=res, time=1)
+    ode_sat = OdeSat(clauses=f1.clauses, resolution=res, time=8)
     sTs, aTs = ode_sat.integrate()
 
     last = sTs[-1]
@@ -165,5 +166,13 @@ if __name__ == "__main__":
 
     plt.clf()
     vs = [ode_sat.V(s, a) for s, a in zip(sTs, aTs)]
+    k_vals = np.array(
+        [ode_sat.K(s, m) for m in range(ode_sat.M) for s, a in zip(sTs, aTs)]
+    )
+
+    vs_no_a = k_vals @ k_vals
+    print("Final V:", vs[-1])
     plt.plot(vs)
     plt.savefig(f"out/{result_name}_v.png")
+    plt.plot(vs_no_a)
+    plt.savefig(f"out/{result_name}_v_no_a.png")
