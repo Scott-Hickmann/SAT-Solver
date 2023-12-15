@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: NextNet
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Scott
+    family-names: Hickmann
+    email: scotthickmann21@gmail.com
+  - given-names: Elijah
+    family-names: Kim
