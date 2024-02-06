@@ -115,9 +115,9 @@ if __name__ == "__main__":
 
     resolution = 10000
     duration = 8
-    file_name = "factor21"
+    file_name = "factor8"
     f1 = CNF(from_file=f"test_files/{file_name}.cnf")
-    result_name = f"{file_name}_solveivp_{duration}s_{resolution}res_3"
+    result_name = f"{file_name}_solveivp_{duration}s_{resolution}res_no_Ki"
 
     import time
 
