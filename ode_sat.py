@@ -4,6 +4,9 @@ from matplotlib import pyplot as plt
 
 np.random.seed(0)
 
+KTs = []
+aTs = []
+
 
 class OdeSat:
     def __init__(self, clauses: np.ndarray, resolution, time):
@@ -36,6 +39,7 @@ class OdeSat:
 
         self.initial_s = np.random.uniform(-1, 1, self.I)
         self.initial_a = self.time * np.ones(self.M)
+        # self.initial_a = np.ones(self.M)
         self.initial = np.concatenate((self.initial_s, self.initial_a))
 
     def K(self, s, m):
@@ -78,6 +82,9 @@ class OdeSat:
         K_vals = np.array([self.K(s, m) for m in range(self.M)])
         ds = self.ds(s, a, K_vals, t)
         da = self.da(a, K_vals)
+        # Normalize as between 1 and 2
+        KTs.append(K_vals)
+        aTs.append(a)
 
         return np.concatenate((ds, da))
 
@@ -114,10 +121,10 @@ if __name__ == "__main__":
     from pysat.formula import CNF
 
     resolution = 10000
-    duration = 8
-    file_name = "factor8"
+    duration = 24
+    file_name = "factor21"
     f1 = CNF(from_file=f"test_files/{file_name}.cnf")
-    result_name = f"{file_name}_solveivp_{duration}s_{resolution}res_no_Ki"
+    result_name = f"02_06_24_{file_name}_solveivp_{duration}s_{resolution}res"
 
     import time
 
@@ -143,5 +150,13 @@ if __name__ == "__main__":
     es = [ode_sat.E(s) for s in sTs]
     plt.plot(es)
     plt.savefig(f"out/{result_name}_e.png")
+
+    plt.clf()
+    plt.plot(KTs)
+    plt.savefig(f"out/{result_name}_K.png")
+
+    plt.clf()
+    plt.plot(aTs)
+    plt.savefig(f"out/{result_name}_a.png")
 
     print(f"Time: {end - start} s, final V: {vs[-1]}")
