@@ -12,7 +12,14 @@ def solve(file_name: str):
 
 
 def verify(file_name: str, result: list):
+    """
+    result should be a list of the variable values,
+    with -1 for false and 1 for true.
+    e.g. x1 = True, x2 = False, x3 = True, x4 = False
+    result = [1, -1, 1, -1]
+    """
     f1 = CNF(from_file=file_name)
+    failed_clauses = 0
     for clause in f1.clauses:
         clause_result = False
         for variable in clause:
@@ -22,8 +29,10 @@ def verify(file_name: str, result: list):
             else:
                 clause_result = clause_result or not value
         if not clause_result:
-            return False
-    return True
+            failed_clauses += 1
+    if failed_clauses > 0:
+        return False, failed_clauses
+    return True, failed_clauses
 
 
 if __name__ == "__main__":

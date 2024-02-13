@@ -1,9 +1,13 @@
 import numpy as np
 from pysat.formula import CNF
 from matplotlib import pyplot as plt
+from solver import verify
 
-file_name = "test_files/moderate.cnf"
+test_name = "complex"
+file_name = f"test_files/{test_name}.cnf"
 cnf = CNF(from_file=file_name)
+
+np.random.seed(0)
 
 
 class Variable:
@@ -92,16 +96,23 @@ def update():
 
 
 history = []
-for i in range(1000):
+for i in range(10000):
     update()
     history.append([v.bucket_ones / Variable.BUCKET_SIZE for v in variables])
 
 print(variables)
 
-result_fname = "out.png"
+result = [1 if x > 0 else -1 for x in history[-1]]
+
+result_fname = f"out/digital/{test_name}.png"
 
 plt.plot(history)
 plt.legend([variable.index + 1 for variable in variables])
 plt.savefig(result_fname)
 
 print(f"saved output graph to {result_fname}")
+
+solved, failed_clauses = verify(file_name, result)
+
+print("Valid solution:", solved)
+print("Failed clauses:", failed_clauses)
