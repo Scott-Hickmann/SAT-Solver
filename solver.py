@@ -27,5 +27,5 @@ def verify(file_name: str, result: list):
 
 
 if __name__ == "__main__":
-    soln = solve("test_files/coloring_basic.cnf")
+    soln = solve("test_files/complex.cnf")
     print(soln)
