@@ -19,8 +19,8 @@ def verify(file_name: str, result: list):
     result = [1, -1, 1, -1]
     """
     f1 = CNF(from_file=file_name)
-    failed_clauses = 0
-    for clause in f1.clauses:
+    failed_clauses = []
+    for index, clause in enumerate(f1.clauses):
         clause_result = False
         for variable in clause:
             value = result[abs(variable) - 1] > 0
@@ -29,8 +29,8 @@ def verify(file_name: str, result: list):
             else:
                 clause_result = clause_result or not value
         if not clause_result:
-            failed_clauses += 1
-    if failed_clauses > 0:
+            failed_clauses.append(index + 1)
+    if len(failed_clauses) > 0:
         return False, failed_clauses
     return True, failed_clauses
 

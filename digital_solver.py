@@ -26,7 +26,7 @@ class Variable:
         self.bucket_ones = max(min(self.bucket_ones, Variable.BUCKET_SIZE), 0)
 
     def __repr__(self):
-        return f"V{self.index} = {self.bucket_ones / Variable.BUCKET_SIZE}"
+        return f"V{self.index + 1}={self.bucket_ones / Variable.BUCKET_SIZE}"
 
 
 class Clause:
@@ -49,9 +49,9 @@ class Clause:
         for vindex, vpositive in self.variable_details():
             if ignore_vindex == vindex:
                 continue
-            if not self.variable_satisfied(vindex, vpositive):
-                return False
-        return True
+            if self.variable_satisfied(vindex, vpositive):
+                return True
+        return False
 
     def update(self):
         satisfied = self.satisfied()
@@ -63,12 +63,12 @@ class Clause:
             satisfied = self.satisfied(ignore_vindex=vindex)
             Ki = int(not satisfied)  # 1 if clause not satisfied without variable i
             ci = int(1 if vpositive else -1)
-            contribution = (K * Ki * ci) << max(self.a, 0)
+            contribution = (K * Ki * ci) << max(round(self.a), 0)
             dsdt_contributions[vindex] = contribution
 
         # update a
         if K:
-            self.a += 1
+            self.a += 1.0/50
 
         return dsdt_contributions
 
@@ -78,13 +78,15 @@ clauses = np.array([Clause(clause) for clause in cnf.clauses])
 
 
 def update():
-    for variable in variables:
-        variable.select_bit()
-
     dsdt_contributions = np.zeros(cnf.nv, dtype=int)
-    for clause in clauses:
-        dsdt_contributions += clause.update()
+    for run in range(50):
+        for variable in variables:
+            variable.select_bit()
 
+        for clause in clauses:
+            dsdt_contributions += clause.update()
+
+    dsdt_contributions = dsdt_contributions // 50
     for i, contribution in enumerate(dsdt_contributions):
         variables[i].add(contribution)
 
@@ -92,12 +94,13 @@ def update():
     diff_a = max(max_a - 5, 0)
     for clause in clauses:
         clause.a -= diff_a
-    # TODO: Clamp all the a values between 0 and something like 5, and make bucket bigger
 
 
 history = []
-for i in range(10000):
+history_a = []
+for i in range(1000):
     update()
+    history_a.append([c.a for c in clauses])
     history.append([v.bucket_ones / Variable.BUCKET_SIZE for v in variables])
 
 print(variables)
@@ -105,10 +108,16 @@ print(variables)
 result = [1 if x > 0 else -1 for x in history[-1]]
 
 result_fname = f"out/digital/{test_name}.png"
+result_fname_a = f"out/digital/{test_name}_a.png"
 
 plt.plot(history)
-plt.legend([variable.index + 1 for variable in variables])
+plt.legend([variable.index for variable in variables])
 plt.savefig(result_fname)
+
+plt.plot(history_a)
+plt.ylim(0, 5)
+plt.legend([i + 1 for i in range(len(clauses))])
+plt.savefig(result_fname_a)
 
 print(f"saved output graph to {result_fname}")
 
@@ -116,3 +125,9 @@ solved, failed_clauses = verify(file_name, result)
 
 print("Valid solution:", solved)
 print("Failed clauses:", failed_clauses)
+
+failed_clauses_redundant = []
+for index, clause in enumerate(clauses):
+    if not clause.satisfied():
+        failed_clauses_redundant.append(index + 1)
+print("Failed clauses redundant:", failed_clauses_redundant)
