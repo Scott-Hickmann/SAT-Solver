@@ -44,7 +44,9 @@ class OdeSat:
         self.initial = np.concatenate((self.initial_s, self.initial_a))
 
     def K(self, s, m):
-        return np.min(1 - self.c[m] * s)
+        variable_evaled = 1 - self.c[m] * s
+        variable_evaled[self.c[m] == 0] = np.inf
+        return np.min(variable_evaled)
         # return np.prod(1 - self.c[m] * s)
 
     def Ki(self, s, m, i, K_vals):
