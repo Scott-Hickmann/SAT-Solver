@@ -50,10 +50,10 @@ class OdeSat:
         self.initial = np.concatenate((self.initial_s, self.initial_a))
 
     def K(self, s, m):
-        # variable_evaled = 1 - self.c[m] * s
-        # variable_evaled[self.c[m] == 0] = np.inf
-        # return np.min(variable_evaled)
-        return np.prod(1 - self.c[m] * s)
+        variable_evaled = 1 - self.c[m] * s
+        variable_evaled[self.c[m] == 0] = np.inf
+        return np.min(variable_evaled)
+        # return np.prod(1 - self.c[m] * s)
 
     def Ki(self, s, m, i, K_vals):
         if self.c[m][i] == 0:
@@ -66,7 +66,7 @@ class OdeSat:
 
     def V(self, s, a):
         K_vals = np.array([self.K(s, m) for m in range(self.M)])
-        return a @ (K_vals**2)
+        return np.sum(K_vals**2)
 
     def E(self, s):
         K_vals = np.array([self.K(s, m) for m in range(self.M)])
@@ -75,8 +75,8 @@ class OdeSat:
     def ds_i(self, s, a, i, K_vals):
         c_vals = self.c[:, i]
         Ki_vals = np.array([self.Ki(s, m, i, K_vals) for m in range(self.M)])
-        # res = np.sum(2 * a * c_vals * Ki_vals * K_vals)
-        res = np.sum(a * c_vals * Ki_vals)
+        # res = np.sum(a * c_vals * Ki_vals)
+        res = np.sum(c_vals * Ki_vals)
         return res
 
     # def da_m(self, K_vals, a, m):
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     duration = 10
     file_name = "coloring_usa"
     f1 = CNF(from_file=f"test_files/{file_name}.cnf")
-    result_name = f"min_proportional_{file_name}_solveivp_{duration}s_{resolution}res"
+    result_name = f"no_a_{file_name}_solveivp_{duration}s_{resolution}res"
 
     import time
 

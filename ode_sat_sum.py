@@ -50,18 +50,19 @@ class OdeSat:
         self.initial = np.concatenate((self.initial_s, self.initial_a))
 
     def K(self, s, m):
-        # variable_evaled = 1 - self.c[m] * s
-        # variable_evaled[self.c[m] == 0] = np.inf
-        # return np.min(variable_evaled)
-        return np.prod(1 - self.c[m] * s)
+        variable_evaled = 1 - self.c[m] * s
+        variable_evaled[self.c[m] == 0] = np.inf
+        return np.min(variable_evaled)
+        # return np.prod(1 - self.c[m] * s)
 
     def Ki(self, s, m, i, K_vals):
         if self.c[m][i] == 0:
             return 0
         variable_evaled = 1 - self.c[m] * s
-        variable_evaled[self.c[m] == 0] = np.inf
-        minimum = np.min(variable_evaled)
-        result = max(2 * minimum - variable_evaled[i], 0)
+        variable_evaled[self.c[m] == 0] = 0
+        variable_evaled[i] = 0
+        terms_len = np.count_nonzero(self.c[m])
+        result = max(np.sum(variable_evaled) - (terms_len - 2), 0)
         return result
 
     def V(self, s, a):
@@ -155,11 +156,11 @@ class OdeSat:
 if __name__ == "__main__":
     from pysat.formula import CNF
 
-    resolution = 10000
-    duration = 10
+    resolution = 2000
+    duration = 8
     file_name = "coloring_usa"
     f1 = CNF(from_file=f"test_files/{file_name}.cnf")
-    result_name = f"min_proportional_{file_name}_solveivp_{duration}s_{resolution}res"
+    result_name = f"min_slope_{file_name}_solveivp_{duration}s_{resolution}res"
 
     import time
 
